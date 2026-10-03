@@ -1,7 +1,7 @@
 'use strict';
 /* ================================================================
-   PRESENSI KELAS — script.js (FULL UPGRADE)
-   Flow: Daftar (Email+NIM+Password) → Login (Email+Password) → Dashboard
+   PRESENSI KELAS — script.js (FINAL UPGRADE)
+   Flow: Daftar (Email+NIM+Password) → Login (Email/Username+Password) → Dashboard
    ================================================================ */
 
 /* ===== KONFIGURASI ===== */
@@ -17,7 +17,7 @@ const CONFIG = {
   QUEUE_KEY: 'presensiQueue',
   QR_PREFIX: 'PRSN',
   QR_SALT: 'presensi-kelas-2026',
-  INSTITUTION: { name: 'Nama Kampus Anda', prodi: 'Program Studi Anda (S1)' },
+  INSTITUTION: { name: 'universitas jabal ghafur', prodi: 'Program Studi Anda (S1)' },
   SEMESTERS: [1, 2, 3, 4, 5, 6, 7, 8],
   ACCOUNTS: [
     { user: 'admin@presensi.id', pass: 'admin123', name: 'Admin' },
@@ -76,20 +76,20 @@ const Auth = {
     return { success: true, msg: 'Pendaftaran berhasil! Silakan masuk.' };
   },
 
-  login(email, pass) {
-    email = String(email).trim().toLowerCase();
+  login(user, pass) {
+    user = String(user).trim().toLowerCase();
     pass = String(pass).trim();
 
     // Cek Admin
-    const admin = CONFIG.ACCOUNTS.find((a) => a.user.toLowerCase() === email && a.pass === pass);
+    const admin = CONFIG.ACCOUNTS.find((a) => a.user.toLowerCase() === user && a.pass === pass);
     if (admin) {
       localStorage.setItem(CONFIG.AUTH_KEY, JSON.stringify({ user: admin.user, name: admin.name, role: 'admin' }));
       return true;
     }
 
-    // Cek Mahasiswa Terdaftar
+    // Cek Mahasiswa Terdaftar (bisa login pakai email atau NIM)
     const students = this.getRegisteredUsers();
-    const student = students.find((s) => s.email === email && s.pass === pass);
+    const student = students.find((s) => (s.email === user || s.nim.toLowerCase() === user) && s.pass === pass);
     if (student) {
       localStorage.setItem(CONFIG.AUTH_KEY, JSON.stringify({ user: student.email, name: student.nim, role: 'mahasiswa' }));
       return true;
@@ -150,18 +150,18 @@ const Auth = {
     // Form Login Submit
     $('loginForm').addEventListener('submit', (e) => {
       e.preventDefault();
-      const email = $('loginEmail').value;
+      const user = $('loginUser').value;
       const pass = $('loginPass').value;
       
-      if (this.login(email, pass)) {
+      if (this.login(user, pass)) {
         if ($('rememberMe').checked) {
-          localStorage.setItem('rememberEmail', email);
+          localStorage.setItem('rememberUser', user);
         } else {
-          localStorage.removeItem('rememberEmail');
+          localStorage.removeItem('rememberUser');
         }
         location.replace('index.html');
       } else {
-        $('loginErrorText').textContent = 'Email atau password salah. Atau akun belum terdaftar.';
+        $('loginErrorText').textContent = 'Email/Username atau password salah. Atau akun belum terdaftar.';
         $('loginError').classList.add('show');
         setTimeout(() => $('loginError').classList.remove('show'), 3000);
       }
@@ -194,7 +194,7 @@ const Auth = {
           $('regSuccess').classList.remove('show');
           registerCard.classList.remove('active');
           loginCard.classList.add('active');
-          $('loginEmail').value = email;
+          $('loginUser').value = email;
           $('loginPass').focus();
         }, 2000);
       } else {
@@ -204,10 +204,10 @@ const Auth = {
       }
     });
 
-    // Auto-fill email jika "Remember Me" pernah dicentang
-    const remembered = localStorage.getItem('rememberEmail');
+    // Auto-fill jika "Remember Me" pernah dicentang
+    const remembered = localStorage.getItem('rememberUser');
     if (remembered) {
-      $('loginEmail').value = remembered;
+      $('loginUser').value = remembered;
       $('rememberMe').checked = true;
     }
   }
