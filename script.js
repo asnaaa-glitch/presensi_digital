@@ -1,14 +1,13 @@
 'use strict';
-
 /* ================================================================
-   PRESENSI KELAS — script.js
-   Dipakai oleh login.html (form login) dan index.html (dashboard)
-================================================================ */
+   PRESENSI KELAS — script.js (FULL UPGRADE)
+   Flow: Daftar (Email+NIM+Password) → Login (Email+Password) → Dashboard
+   ================================================================ */
 
 /* ===== KONFIGURASI ===== */
 const CONFIG = {
   API_URL: 'https://script.google.com/macros/s/AKfycbwhpeZ9abc6BoZ3MJR790U9CkrV0oLRETrP2PtbKVu4mOydJ3sZ4Xz78ijB5PM9tu2x/exec',
-  SHEET_URL: 'https://docs.google.com/spreadsheets/d/1OmJeh0-W-7BnxZWDTJjesMJl1v31CJjf8dRHmXFuF2g/edit?gid=2067236183#gid=2067236183',
+  SHEET_URL: 'https://docs.google.com/spreadsheets/d/1OmJeh0-W-7BnxZWDTJjesMJl1v31CJjf8dRHmXFuF2g/edit?gid=0#gid=0',
   REFRESH_MS: 15000,
   CACHE_KEY: 'mahasiswaData',
   SOUND_KEY: 'presensiSound',
@@ -21,8 +20,8 @@ const CONFIG = {
   INSTITUTION: { name: 'Nama Kampus Anda', prodi: 'Program Studi Anda (S1)' },
   SEMESTERS: [1, 2, 3, 4, 5, 6, 7, 8],
   ACCOUNTS: [
-    { user: 'dosen', pass: 'dosen123', name: 'Dosen Demo' },
-    { user: 'admin', pass: 'admin123', name: 'Admin' }
+    { user: 'admin@presensi.id', pass: 'admin123', name: 'Admin' },
+    { user: 'dosen@presensi.id', pass: 'dosen123', name: 'Dosen' }
   ]
 };
 
@@ -40,23 +39,70 @@ const Store = {
   torch: false, reader: null, cardNim: '', query: '', filter: 'all', classFilter: 'all', flashNim: null, fullscreen: false
 };
 
-/* ===== AUTH ===== */
+/* ===== AUTH (Email + Password + NIM) ===== */
 const Auth = {
   _ready: false,
+
+  getRegisteredUsers() {
+    try { return JSON.parse(localStorage.getItem('registeredAccounts') || '[]'); }
+    catch (e) { return []; }
+  },
+
   current() {
     try { return JSON.parse(localStorage.getItem(CONFIG.AUTH_KEY) || 'null'); }
     catch (e) { return null; }
   },
-  login(user, pass) {
-    const acc = CONFIG.ACCOUNTS.find((a) => a.user.toLowerCase() === String(user).trim().toLowerCase() && a.pass === pass);
-    if (!acc) return false;
-    localStorage.setItem(CONFIG.AUTH_KEY, JSON.stringify({ user: acc.user, name: acc.name }));
-    return true;
+
+  register(email, nim, pass) {
+    email = String(email).trim().toLowerCase();
+    nim = String(nim).trim();
+    
+    if (!email || !nim || !pass) return { success: false, msg: 'Semua kolom wajib diisi!' };
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { success: false, msg: 'Format email tidak valid!' };
+    if (pass.length < 6) return { success: false, msg: 'Password minimal 6 karakter!' };
+
+    const users = this.getRegisteredUsers();
+    
+    if (users.find(u => u.email === email)) {
+      return { success: false, msg: 'Email ini sudah terdaftar. Silakan login.' };
+    }
+    
+    if (users.find(u => u.nim.toLowerCase() === nim.toLowerCase())) {
+      return { success: false, msg: 'NIM ini sudah terdaftar dengan email lain.' };
+    }
+
+    users.push({ email, nim, pass });
+    localStorage.setItem('registeredAccounts', JSON.stringify(users));
+    return { success: true, msg: 'Pendaftaran berhasil! Silakan masuk.' };
   },
+
+  login(email, pass) {
+    email = String(email).trim().toLowerCase();
+    pass = String(pass).trim();
+
+    // Cek Admin
+    const admin = CONFIG.ACCOUNTS.find((a) => a.user.toLowerCase() === email && a.pass === pass);
+    if (admin) {
+      localStorage.setItem(CONFIG.AUTH_KEY, JSON.stringify({ user: admin.user, name: admin.name, role: 'admin' }));
+      return true;
+    }
+
+    // Cek Mahasiswa Terdaftar
+    const students = this.getRegisteredUsers();
+    const student = students.find((s) => s.email === email && s.pass === pass);
+    if (student) {
+      localStorage.setItem(CONFIG.AUTH_KEY, JSON.stringify({ user: student.email, name: student.nim, role: 'mahasiswa' }));
+      return true;
+    }
+
+    return false;
+  },
+
   logout() {
     localStorage.removeItem(CONFIG.AUTH_KEY);
     location.replace('login.html');
   },
+
   updateUI(me) {
     const chip = $('userChip');
     if (!chip) return;
@@ -64,40 +110,106 @@ const Auth = {
     $('userName').textContent = me.name || me.user;
     chip.onclick = () => { if (confirm('Keluar dari sistem?')) this.logout(); };
   },
-  // Dipanggil dari init() saat halaman login dibuka
+
   initLoginPage() {
     if (this._ready) return;
     this._ready = true;
 
-    // Sudah login -> langsung ke dashboard
-    if (this.current()) { location.replace('index.html'); return; }
-
-    const demoList = $('demoList');
-    if (demoList) {
-      demoList.innerHTML = CONFIG.ACCOUNTS.map((a) => (
-        `<div class="auth-demo-item" data-user="${esc(a.user)}" data-pass="${esc(a.pass)}">
-          <span>${esc(a.name)}</span>
-          <span>${esc(a.user)} / ${esc(a.pass)}</span>
-        </div>`
-      )).join('');
-      demoList.querySelectorAll('.auth-demo-item').forEach((el) => {
-        el.addEventListener('click', () => {
-          $('loginUser').value = el.dataset.user;
-          $('loginPass').value = el.dataset.pass;
-        });
+    // Toggle Password Visibility
+    document.querySelectorAll('.toggle-pass').forEach(icon => {
+      icon.addEventListener('click', () => {
+        const input = icon.previousElementSibling;
+        if (input.type === 'password') {
+          input.type = 'text';
+          icon.classList.remove('fa-eye-slash');
+          icon.classList.add('fa-eye');
+        } else {
+          input.type = 'password';
+          icon.classList.remove('fa-eye');
+          icon.classList.add('fa-eye-slash');
+        }
       });
-    }
+    });
 
+    // Switch antara Login & Register
+    const loginCard = $('loginCard');
+    const registerCard = $('registerCard');
+    
+    $('showRegister').addEventListener('click', (e) => {
+      e.preventDefault();
+      loginCard.classList.remove('active');
+      registerCard.classList.add('active');
+    });
+
+    $('showLogin').addEventListener('click', (e) => {
+      e.preventDefault();
+      registerCard.classList.remove('active');
+      loginCard.classList.add('active');
+    });
+
+    // Form Login Submit
     $('loginForm').addEventListener('submit', (e) => {
       e.preventDefault();
-      if (this.login($('loginUser').value, $('loginPass').value)) {
+      const email = $('loginEmail').value;
+      const pass = $('loginPass').value;
+      
+      if (this.login(email, pass)) {
+        if ($('rememberMe').checked) {
+          localStorage.setItem('rememberEmail', email);
+        } else {
+          localStorage.removeItem('rememberEmail');
+        }
         location.replace('index.html');
       } else {
-        const err = $('loginError');
-        err.classList.add('show');
-        setTimeout(() => err.classList.remove('show'), 2500);
+        $('loginErrorText').textContent = 'Email atau password salah. Atau akun belum terdaftar.';
+        $('loginError').classList.add('show');
+        setTimeout(() => $('loginError').classList.remove('show'), 3000);
       }
     });
+
+    // Form Register Submit
+    $('registerForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const email = $('regEmail').value;
+      const nim = $('regNim').value;
+      const pass = $('regPass').value;
+      const passConf = $('regPassConfirm').value;
+
+      if (pass !== passConf) {
+        $('regErrorText').textContent = 'Konfirmasi password tidak cocok!';
+        $('regError').classList.add('show');
+        $('regSuccess').classList.remove('show');
+        return;
+      }
+
+      const result = this.register(email, nim, pass);
+      
+      if (result.success) {
+        $('regError').classList.remove('show');
+        $('regSuccessText').textContent = result.msg;
+        $('regSuccess').classList.add('show');
+        $('registerForm').reset();
+        
+        setTimeout(() => {
+          $('regSuccess').classList.remove('show');
+          registerCard.classList.remove('active');
+          loginCard.classList.add('active');
+          $('loginEmail').value = email;
+          $('loginPass').focus();
+        }, 2000);
+      } else {
+        $('regErrorText').textContent = result.msg;
+        $('regError').classList.add('show');
+        $('regSuccess').classList.remove('show');
+      }
+    });
+
+    // Auto-fill email jika "Remember Me" pernah dicentang
+    const remembered = localStorage.getItem('rememberEmail');
+    if (remembered) {
+      $('loginEmail').value = remembered;
+      $('rememberMe').checked = true;
+    }
   }
 };
 
@@ -141,6 +253,7 @@ const Particles = {
       p.style.width = p.style.height = (2 + Math.random() * 4) + 'px';
       p.style.opacity = 0.2 + Math.random() * 0.4;
       container.appendChild(p);
+      p.style.display = 'block';
     }
   }
 };
@@ -227,7 +340,7 @@ function startClock() {
   setInterval(tick, 1000);
 }
 
-/* ===== FEEDBACK (suara & getar) ===== */
+/* ===== FEEDBACK ===== */
 const Feedback = {
   on: localStorage.getItem(CONFIG.SOUND_KEY) !== 'off',
   ctx: null,
@@ -250,9 +363,9 @@ const Feedback = {
   },
   play(kind) {
     if (!this.on) return;
-    if (kind === 'success') { this.tone(880, 0, 0.12); this.tone(1320, 0.12, 0.18); navigator.vibrate && navigator.vibrate(80); }
-    else if (kind === 'warning') { this.tone(660, 0, 0.15); this.tone(660, 0.2, 0.15); navigator.vibrate && navigator.vibrate([60, 60, 60]); }
-    else { this.tone(220, 0, 0.3); navigator.vibrate && navigator.vibrate(200); }
+    if (kind === 'success') { this.tone(880, 0, 0.12); this.tone(1320, 0.12, 0.18); if (navigator.vibrate) navigator.vibrate(80); }
+    else if (kind === 'warning') { this.tone(660, 0, 0.15); this.tone(660, 0.2, 0.15); if (navigator.vibrate) navigator.vibrate([60, 60, 60]); }
+    else { this.tone(220, 0, 0.3); if (navigator.vibrate) navigator.vibrate(200); }
   },
   toggle() {
     this.on = !this.on;
@@ -268,7 +381,7 @@ const Feedback = {
   }
 };
 
-/* ===== HASIL SCAN (overlay) ===== */
+/* ===== HASIL SCAN ===== */
 const ScanResult = {
   timer: null,
   show(kind, title, sub) {
@@ -301,7 +414,6 @@ const Api = {
   async students() { return normalizeRoster((await this.get('get_all')).data); },
   async todayAttendance() {
     const s = Session.data;
-    // Sesi belum lengkap -> jangan tampilkan status hadir apa pun
     if (!s.kelas || !String(s.matkul || '').trim()) { Store.today = new Map(); return; }
     const json = await this.get('get_today_attendance', { kelas: s.kelas, matkul: String(s.matkul).trim() });
     const map = new Map();
@@ -355,7 +467,6 @@ const Session = {
   data: { semester: '', kelas: '', matkul: '' },
   kelasSig: null,
   reloadTimer: null,
-
   load() {
     try { this.data = { ...this.data, ...JSON.parse(localStorage.getItem(CONFIG.SESSION_KEY) || '{}') }; }
     catch (e) {}
@@ -378,8 +489,7 @@ const Session = {
     const kelasSel = $('sessionKelas');
     if (!kelasSel) return;
     const classes = Roster.getClasses();
-    // Kelas tersimpan sudah tidak ada di data -> kosongkan
-    if (classes.length && this.data.kelas && !classes.includes(this.data.kelas)) {
+    if (this.data.kelas && !classes.includes(this.data.kelas)) {
       this.data.kelas = ''; this.data.matkul = ''; this.save();
     }
     const enabled = !!this.data.semester;
@@ -427,7 +537,6 @@ const Session = {
     this.applyKelasToMatkul();
     this.updateStatus();
   },
-  // Ambil ulang status hadir sesuai sesi yang baru dipilih
   scheduleReload() {
     clearTimeout(this.reloadTimer);
     this.reloadTimer = setTimeout(async () => {
@@ -439,7 +548,6 @@ const Session = {
   init() {
     this.load();
     this.refresh();
-
     on('semesterSelect', 'change', (e) => {
       this.data.semester = e.target.value;
       this.data.kelas = ''; this.data.matkul = '';
@@ -469,7 +577,6 @@ const Roster = {
   animateNext: true,
   loading: false,
   classSig: null,
-
   isPresent(nim) { return Store.today.has(nim); },
   getClasses() {
     return [...new Set(Store.roster.map((m) => m.kelas).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'id', { numeric: true }));
@@ -575,7 +682,7 @@ const Roster = {
       const cached = JSON.parse(localStorage.getItem(CONFIG.CACHE_KEY) || '[]');
       if (Array.isArray(cached) && cached.length) {
         Store.roster = cached;
-        this.suffix = ` (${label})`;
+        this.suffix = `(${label})`;
         this.populateClassFilter();
         this.render();
         Log.render();
@@ -606,11 +713,10 @@ const Roster = {
         this.populateClassFilter();
         this.render();
         Log.render();
-        setNet('online', 'Online');
+        setNet('online', 'Online'); 
         if (!silent) Notice.show(`${data.length} data mahasiswa tersinkron ✓`, 'success', 3000);
         return;
       }
-      // Sheet terhubung tapi kosong
       Store.roster = [];
       localStorage.removeItem(CONFIG.CACHE_KEY);
       setNet('online', 'Online - kosong');
@@ -641,7 +747,7 @@ const Roster = {
     list.forEach((m) => {
       const rec = Store.today.get(m.nim);
       rows.push([s.semester || '', m.kelas, s.matkul || '', m.nim, m.nama, m.jurusan, rec ? 'Hadir' : 'Belum', rec ? (rec.waktu || '') : '']);
-    });
+    }); 
     const csv = '\uFEFF' + rows.map((r) => r.map(cell).join(',')).join('\r\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const a = document.createElement('a');
@@ -1077,7 +1183,7 @@ function initFilters() {
 const Shortcuts = {
   init() {
     document.addEventListener('keydown', (e) => {
-      if (e.ctrlKey || e.metaKey || e.altKey) return; // jangan bentrok dengan Ctrl+R, Ctrl+S, dll
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.target.matches('input, textarea, select')) { if (e.key === 'Escape') e.target.blur(); return; }
       const modalOpen = [...document.querySelectorAll('.modal')].some((m) => !m.hidden);
       if (modalOpen && e.key !== 'Escape') return;
@@ -1170,19 +1276,22 @@ async function init() {
   Notice.init();
   Theme.init();
   Particles.init();
-
+  
   // --- Halaman login ---
-  if ($('loginForm')) { Auth.initLoginPage(); return; }
-
+  if ($('loginForm') || $('loginCard')) { 
+    Auth.initLoginPage(); 
+    return; 
+  }
+  
   // --- Halaman dashboard: wajib sudah login ---
   const me = Auth.current();
   if (!me) { location.replace('login.html'); return; }
   Auth.updateUI(me);
-
+  
   if ($('instName')) $('instName').textContent = CONFIG.INSTITUTION.name;
   if ($('instProdi')) $('instProdi').textContent = CONFIG.INSTITUTION.prodi;
   if ($('sheetLink')) $('sheetLink').href = CONFIG.SHEET_URL;
-
+  
   Ripple.init();
   startClock();
   Nav.init();
@@ -1190,12 +1299,10 @@ async function init() {
   Feedback.paint();
   document.addEventListener('click', () => Feedback.unlock(), { once: true });
   setupDashboardButtons();
-
   Session.init();
   initFilters();
   Roster.renderSession();
   await Roster.load();
-
   RefreshIndicator.start();
   checkCamera().then((ok) => { if (ok) setTimeout(() => Scanner.start(), 800); });
 }
@@ -1206,6 +1313,7 @@ document.addEventListener('DOMContentLoaded', () => {
     Notice.show('Terjadi error: ' + e.message, 'error', 8000);
   });
 });
+
 window.addEventListener('beforeunload', () => {
   if (Store.reader && Store.scanning) Store.reader.stop().catch(() => {});
 });
