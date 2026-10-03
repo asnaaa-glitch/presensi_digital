@@ -1,9 +1,23 @@
 <!DOCTYPE html>
 <html lang="id" data-theme="light">
 <head>
+<!-- 🔥🔥 SCRIPT REDIRECT - WAJIB DI PALING ATAS 🔥🔥 -->
+<script>
+(function() {
+  try {
+    const auth = JSON.parse(localStorage.getItem('presensiAuth') || 'null');
+    if (!auth) {
+      window.location.replace('login.html');
+    }
+  } catch(e) {
+    window.location.replace('login.html');
+  }
+})();
+</script>
+
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<meta name="theme-color" content="#3b82f6" />
+<meta name="theme-color" content="#0d7377" />
 <title>Presensi Kelas — QR Attendance System</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -54,9 +68,9 @@
       <div class="inst-id">
         <div class="inst-mark"><i class="fa-solid fa-building-columns"></i></div>
         <div>
-          <h2 id="instName">Nama Kampus Anda</h2>
+          <h2 id="instName">Universitas Jabal Ghafur</h2>
           <p><i class="fa-solid fa-grid-2"></i> Sistem Absensi Mahasiswa</p>
-          <span class="inst-badge"><i class="fa-solid fa-bookmark"></i> <span id="instProdi">Program Studi Anda (S1)</span></span>
+          <span class="inst-badge"><i class="fa-solid fa-bookmark"></i> <span id="instProdi">Rekayasa Perangkat Lunak (S1)</span></span>
         </div>
       </div>
       <div class="inst-clock">
@@ -236,7 +250,7 @@
 
   <!-- Footer -->
   <footer class="foot">
-    <p>Terhubung dengan <a href="#" id="sheetLink" target="_blank" rel="noopener">Google Sheets</a> · Menunggu scan</p>
+    <p>Terhubung dengan <a href="#" id="sheetLink" target="_blank" rel="noopener">Google Sheets</a> · <span id="footStatus">Menunggu scan</span></p>
     <p class="foot-hint">💡 Tekan <kbd>?</kbd> untuk melihat keyboard shortcuts</p>
   </footer>
 </main>
