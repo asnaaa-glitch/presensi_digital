@@ -1,56 +1,132 @@
 <!DOCTYPE html>
-<html lang="id" data-theme="light">
+<html lang="id">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<meta name="theme-color" content="#3b82f6" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Masuk — Presensi Kelas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="login-page">
 
+<!-- Background Image (GANTI URL di CSS) -->
+<div class="login-bg">
+  <div class="login-overlay"></div>
+</div>
+
+<!-- Particles -->
 <div class="particles" id="particles"></div>
 
-<div class="auth-wrap">
-  <div class="auth-card">
-    <div class="auth-mark"><i class="fa-solid fa-qrcode"></i></div>
-    <h1>Presensi Kelas</h1>
-    <p class="sub">Masuk untuk membuka dashboard scan &amp; rekap kehadiran.</p>
+<!-- Form Container -->
+<div class="login-container">
+  
+  <!-- FORM LOGIN -->
+  <div class="login-card active" id="loginCard">
+    <div class="login-header">
+      <div class="login-logo">
+        <i class="fa-solid fa-qrcode"></i>
+      </div>
+      <h1>Login</h1>
+      <p class="login-sub">Selamat datang kembali, silakan masuk ke akun Anda.</p>
+    </div>
 
     <form id="loginForm">
-      <div class="auth-field">
-        <label for="loginUser">Username</label>
-        <div class="nim-field">
-          <i class="fa-solid fa-user"></i>
-          <input type="text" id="loginUser" placeholder="Masukkan username" autocomplete="username" required>
-        </div>
+      <div class="input-group">
+        <input type="email" id="loginEmail" placeholder="Email" required autocomplete="email">
+        <i class="fa-solid fa-envelope"></i>
       </div>
-      <div class="auth-field">
-        <label for="loginPass">Password</label>
-        <div class="nim-field">
-          <i class="fa-solid fa-lock"></i>
-          <input type="password" id="loginPass" placeholder="Masukkan password" autocomplete="current-password" required>
-        </div>
+      
+      <div class="input-group">
+        <input type="password" id="loginPass" placeholder="Password" required autocomplete="current-password">
+        <i class="fa-solid fa-eye-slash toggle-pass"></i>
       </div>
 
-      <div class="auth-error" id="loginError">
-        <i class="fa-solid fa-circle-exclamation"></i> Username atau password salah.
+      <div class="login-options">
+        <label class="remember-me">
+          <input type="checkbox" id="rememberMe">
+          <span>Ingat saya</span>
+        </label>
       </div>
 
-      <button type="submit" class="btn btn-main btn-block auth-submit">
-        <i class="fa-solid fa-right-to-bracket"></i><span>Masuk Sistem</span>
+      <div class="login-error" id="loginError">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <span id="loginErrorText">Email atau password salah.</span>
+      </div>
+
+      <button type="submit" class="btn-login">
+        <span>Login</span>
+        <i class="fa-solid fa-arrow-right"></i>
       </button>
     </form>
 
-    <div class="auth-demo">
-      <p>AKUN DEMO — klik untuk isi otomatis</p>
-      <div class="auth-demo-list" id="demoList"></div>
+    <div class="login-footer">
+      <p>Belum punya akun? <a href="#" id="showRegister">Daftar</a></p>
+    </div>
+
+    <div class="login-credit">
+      <p>Presensi Kelas © 2026</p>
     </div>
   </div>
+
+  <!-- FORM DAFTAR -->
+  <div class="login-card" id="registerCard">
+    <div class="login-header">
+      <div class="login-logo">
+        <i class="fa-solid fa-user-plus"></i>
+      </div>
+      <h1>Daftar Akun</h1>
+      <p class="login-sub">Buat akun mahasiswa baru untuk presensi.</p>
+    </div>
+
+    <form id="registerForm">
+      <div class="input-group">
+        <input type="email" id="regEmail" placeholder="Email" required autocomplete="email">
+        <i class="fa-solid fa-envelope"></i>
+      </div>
+
+      <div class="input-group">
+        <input type="text" id="regNim" placeholder="NIM / NPM" required>
+        <i class="fa-solid fa-id-card"></i>
+      </div>
+
+      <div class="input-group">
+        <input type="password" id="regPass" placeholder="Password (min 6 karakter)" required>
+        <i class="fa-solid fa-eye-slash toggle-pass"></i>
+      </div>
+
+      <div class="input-group">
+        <input type="password" id="regPassConfirm" placeholder="Konfirmasi Password" required>
+        <i class="fa-solid fa-eye-slash toggle-pass"></i>
+      </div>
+
+      <div class="login-error" id="regError">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <span id="regErrorText"></span>
+      </div>
+
+      <div class="login-success" id="regSuccess">
+        <i class="fa-solid fa-circle-check"></i>
+        <span id="regSuccessText">Pendaftaran berhasil!</span>
+      </div>
+
+      <button type="submit" class="btn-login btn-register">
+        <span>Daftar Sekarang</span>
+        <i class="fa-solid fa-user-plus"></i>
+      </button>
+    </form>
+
+    <div class="login-footer">
+      <p>Sudah punya akun? <a href="#" id="showLogin">Masuk</a></p>
+    </div>
+
+    <div class="login-credit">
+      <p>Presensi Kelas © 2026</p>
+    </div>
+  </div>
+
 </div>
 
 <script src="script.js"></script>
